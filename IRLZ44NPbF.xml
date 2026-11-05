@@ -1,0 +1,87 @@
+<SemiconductorDevice Homepage="https://altair.com" Version="22.1.0.0">
+<Device Type="MOSFET" PARTNUMBER="IRLZ44NPbF" MANUFACTURER="Infineon (International Rectifier)">
+<VDS_MAX>55</VDS_MAX>
+<ID_MAX>47</ID_MAX>
+<TJ_MAX>175</TJ_MAX>
+<!-- RDS(on) max: 0.022 ohm @ VGS=10V, ID=25A (0.025 ohm @ VGS=5V) -->
+<RDS_ON>0.022</RDS_ON>
+<TJ_RDS_ON>25</TJ_RDS_ON>
+<!-- VGS(th): min 1.0 V, max 2.0 V, no typical given; midpoint used -->
+<VGS_TH>1.5</VGS_TH>
+<GFS>21</GFS>
+<QG>4.8e-08</QG>
+<QGS>8.6e-09</QGS>
+<QGD>2.5e-08</QGD>
+<VDS_Q>44</VDS_Q>
+<ID_Q>25</ID_Q>
+<Ciss>1.7e-09</Ciss>
+
+<!-- Diode forward voltage, 25C curve read off Fig 7 (axis starts at 10 A). Approximate. -->
+<VF_IF>
+<GraphBox XLog="0" YLog="0" XSuffix="A" YSuffix="V">
+<Condition DataType="Temperature" Name="Tj" Value="25"/>
+<Graph Tj="25">(10,0.85)(25,1.05)(47,1.25)</Graph>
+</GraphBox>
+</VF_IF>
+
+<!-- ========================================================== -->
+<!-- REPLACED: Switching energies from actual DPT measurements  -->
+<!-- Extrapolated linearly up to 25A for PSIM interpolation     -->
+<!-- ========================================================== -->
+<Eon_IC>
+  <!-- DPT Case 1: 21.5V, 4.33A, 0.972 uJ -->
+  <GraphBox XLog="0" YLog="0" XSuffix="A" YSuffix="J">
+    <Condition DataType="Temperature" Name="Tj" Value="25"/>
+    <Condition DataType="Voltage" Name="VDS" Value="21.5"/>
+    <Graph Tj="25">(1.0, 0.22e-6)(4.33, 0.972e-6)(10.0, 2.24e-6)(25.0, 5.61e-6)</Graph>
+  </GraphBox>
+  <!-- DPT Case 2: 24.5V, 4.90A, 1.314 uJ -->
+  <GraphBox XLog="0" YLog="0" XSuffix="A" YSuffix="J">
+    <Condition DataType="Temperature" Name="Tj" Value="25"/>
+    <Condition DataType="Voltage" Name="VDS" Value="24.5"/>
+    <Graph Tj="25">(1.0, 0.27e-6)(4.90, 1.314e-6)(10.0, 2.68e-6)(25.0, 6.70e-6)</Graph>
+  </GraphBox>
+  <!-- DPT Case 3: 28.0V, 5.42A, 1.876 uJ -->
+  <GraphBox XLog="0" YLog="0" XSuffix="A" YSuffix="J">
+    <Condition DataType="Temperature" Name="Tj" Value="25"/>
+    <Condition DataType="Voltage" Name="VDS" Value="28.0"/>
+    <Graph Tj="25">(1.0, 0.35e-6)(5.42, 1.876e-6)(10.0, 3.46e-6)(25.0, 8.65e-6)</Graph>
+  </GraphBox>
+</Eon_IC>
+
+<Eoff_IC>
+  <!-- DPT Case 1: 21.5V, 3.35A, 0.851 uJ -->
+  <GraphBox XLog="0" YLog="0" XSuffix="A" YSuffix="J">
+    <Condition DataType="Temperature" Name="Tj" Value="25"/>
+    <Condition DataType="Voltage" Name="VDS" Value="21.5"/>
+    <Graph Tj="25">(1.0, 0.25e-6)(3.35, 0.851e-6)(10.0, 2.54e-6)(25.0, 6.35e-6)</Graph>
+  </GraphBox>
+  <!-- DPT Case 2: 24.5V, 3.88A, 1.253 uJ -->
+  <GraphBox XLog="0" YLog="0" XSuffix="A" YSuffix="J">
+    <Condition DataType="Temperature" Name="Tj" Value="25"/>
+    <Condition DataType="Voltage" Name="VDS" Value="24.5"/>
+    <Graph Tj="25">(1.0, 0.32e-6)(3.88, 1.253e-6)(10.0, 3.23e-6)(25.0, 8.07e-6)</Graph>
+  </GraphBox>
+  <!-- DPT Case 3: 28.0V, 4.50A, 1.855 uJ -->
+  <GraphBox XLog="0" YLog="0" XSuffix="A" YSuffix="J">
+    <Condition DataType="Temperature" Name="Tj" Value="25"/>
+    <Condition DataType="Voltage" Name="VDS" Value="28.0"/>
+    <Graph Tj="25">(1.0, 0.41e-6)(4.50, 1.855e-6)(10.0, 4.12e-6)(25.0, 10.30e-6)</Graph>
+  </GraphBox>
+</Eoff_IC>
+
+<!-- Body diode reverse recovery: 210 nC typ @ IF=25 A, di/dt=100 A/us, Tj=25C -->
+<Qrr>2.1e-07</Qrr>
+<IF>25</IF>
+
+<!-- Foster network (from the separate RC thermal model). Note: sum of R = 1.00 C/W,
+     while datasheet RthJC max = 1.4 C/W and Fig 11 settles near 1.4. -->
+<THERMALDATA RCType="Foster" NumStages="4">
+  <Stage Index="0" RTransistor="0.20689" CTransistor="0.22207"/>
+  <Stage Index="1" RTransistor="0.39598" CTransistor="0.06226"/>
+  <Stage Index="2" RTransistor="0.22736" CTransistor="0.37175"/>
+  <Stage Index="3" RTransistor="0.17035" CTransistor="0.005477"/>
+</THERMALDATA>
+
+</Device>
+</SemiconductorDevice>
