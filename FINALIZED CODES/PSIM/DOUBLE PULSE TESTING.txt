@@ -1,0 +1,174 @@
+Clear();
+Print("--- DPT voltage sweep starting ---");
+
+// Double-pulse-test sweep.
+// Runs the DPT schematic at V_bus = 21.5, 24.5, 28.0 V, reads the
+// switching waveforms from each run, integrates turn-off and turn-on
+// energy, appends one row per case to a summary CSV, and also dumps the
+// raw Case-2 (24.5 V) waveform for the report figure.
+
+BasePath   = "C:/Users/User/Desktop/SEM 9/FYP 2/";
+SchFile    = BasePath + "DPT.psimsch";
+OutputFile = BasePath + "DPT_voltage_sweep_extraction_summary.csv";
+
+Vbus_list = { 21.5, 24.5, 28.0 };
+
+FileWrite(OutputFile, "Case,V_bus_V,I_turnoff_A,E_off_uJ,I_turnon_A,E_on_uJ" + _CRLF, "W");
+
+i = 0;
+while (i < 3)
+{
+    Vbus_case = Vbus_list[i];
+    CaseNo    = String(i + 1);
+
+    SmvFile = BasePath + "DPT_case_" + CaseNo + "_Vbus_" + String(Vbus_case) + "V.smv";
+
+    Print("Case ", CaseNo, ": Vbus = ", Vbus_case, " V");
+
+    // Run the DPT. V_bus is passed through to the source's Amplitude field
+    // so each case drives the switch at the intended bus voltage.
+    Simulate(
+        SchFile,
+        SmvFile,
+        TimeStep  = 2n,
+        TotalTime = 60u,
+        PrintTime = 0,
+        PrintStep = 1,
+        V_bus     = Vbus_case
+    );
+
+    Print("Reading ", SmvFile);
+    DataSet = GraphRead(SmvFile);
+
+    TimeArr = DataSet[0];
+    VDS     = GetCurve(DataSet, "V(T2.VDS)");
+    IDS     = GetCurve(DataSet, "I(T2.IDS)");
+
+    if (SizeOf(TimeArr) == 0 || SizeOf(VDS) == 0 || SizeOf(IDS) == 0)
+    {
+        Print("Error: required curves missing for Case ", CaseNo);
+    }
+    else
+    {
+        NumPoints = SizeOf(TimeArr);
+
+        // Find the peak VDS so we can set 10 % / 90 % thresholds relative
+        // to this case rather than hard-coding them.
+        V_max = VDS[0];
+        m = 1;
+        while (m < NumPoints)
+        {
+            if (VDS[m] > V_max) { V_max = VDS[m]; }
+            m = m + 1;
+        }
+
+        V_thresh_low  = 0.1 * V_max;
+        V_thresh_high = 0.9 * V_max;
+
+        // FallIdx = where VDS first goes above 10 % (start of turn-off)
+        // RiseIdx = where VDS later crosses below 90 % (start of turn-on)
+        // Scanning is one-sided: once FallIdx is found we only look for
+        // RiseIdx afterwards, so the same edge is never re-detected.
+        FallIdx = -1;
+        RiseIdx = -1;
+        n = 1;
+        while (n < NumPoints && (FallIdx == -1 || RiseIdx == -1))
+        {
+            if (FallIdx == -1 && VDS[n-1] <= V_thresh_low && VDS[n] > V_thresh_low)
+            {
+                FallIdx = n;
+            }
+            else if (FallIdx != -1 && RiseIdx == -1 && VDS[n-1] >= V_thresh_high && VDS[n] < V_thresh_high)
+            {
+                RiseIdx = n;
+            }
+            n = n + 1;
+        }
+
+        if (FallIdx == -1 || RiseIdx == -1)
+        {
+            Print("Error: could not isolate switching edges for Case ", CaseNo);
+        }
+        else
+        {
+            // Turn-off energy: integrate v*i over a 100 ns pre-window
+            // plus 400 ns after FallIdx. The pre-window catches the tail
+            // of the on-state before the edge starts.
+            t_start_off = TimeArr[FallIdx] - 100e-9;
+            t_end_off   = TimeArr[FallIdx] + 400e-9;
+
+            E_off = 0.0;
+            k_off = 0;
+            while (k_off < NumPoints)
+            {
+                t = TimeArr[k_off];
+                if (t >= t_start_off && t <= t_end_off)
+                {
+                    if (k_off > 0)
+                    {
+                        dt     = TimeArr[k_off] - TimeArr[k_off-1];
+                        p_prev = abs(VDS[k_off-1] * IDS[k_off-1]);
+                        p_curr = abs(VDS[k_off]   * IDS[k_off]);
+                        E_off  = E_off + 0.5 * (p_prev + p_curr) * dt;
+                    }
+                }
+                k_off = k_off + 1;
+            }
+            I_turnoff = abs(IDS[FallIdx]);
+
+            // Turn-on energy: same trapezoid, same window layout.
+            t_start_on = TimeArr[RiseIdx] - 100e-9;
+            t_end_on   = TimeArr[RiseIdx] + 400e-9;
+
+            E_on = 0.0;
+            k_on = 0;
+            while (k_on < NumPoints)
+            {
+                t = TimeArr[k_on];
+                if (t >= t_start_on && t <= t_end_on)
+                {
+                    if (k_on > 0)
+                    {
+                        dt     = TimeArr[k_on] - TimeArr[k_on-1];
+                        p_prev = abs(VDS[k_on-1] * IDS[k_on-1]);
+                        p_curr = abs(VDS[k_on]   * IDS[k_on]);
+                        E_on   = E_on + 0.5 * (p_prev + p_curr) * dt;
+                    }
+                }
+                k_on = k_on + 1;
+            }
+            I_turnon = abs(IDS[RiseIdx]);
+
+            E_off_uJ = E_off * 1e6;
+            E_on_uJ  = E_on  * 1e6;
+
+            DataRow = CaseNo + "," + String(Vbus_case) + "," + String(I_turnoff) + "," + String(E_off_uJ) + "," + String(I_turnon) + "," + String(E_on_uJ) + _CRLF;
+            FileAppend(OutputFile, DataRow, "A");
+
+            Print("Case ", CaseNo, " (V_bus = ", Vbus_case, " V):");
+            Print("  off  -> I=", I_turnoff, " A, E=", E_off_uJ, " uJ");
+            Print("  on   -> I=", I_turnon,  " A, E=", E_on_uJ,  " uJ");
+
+            // Case 2 is the reference waveform for the report figure, so
+            // dump its full trace once. Header + every sample.
+            if (CaseNo == "2")
+            {
+                RawExportFile = BasePath + "DPT_Raw_Data.csv";
+                FileWrite(RawExportFile, "Time,VDS,IDS" + _CRLF, "W");
+
+                q = 0;
+                while (q < NumPoints)
+                {
+                    RowString = String(TimeArr[q]) + "," + String(VDS[q]) + "," + String(IDS[q]) + _CRLF;
+                    FileAppend(RawExportFile, RowString, "A");
+                    q = q + 1;
+                }
+                Print("Raw waveform for Case 2 written to ", RawExportFile);
+            }
+        }
+    }
+
+    i = i + 1;
+}
+
+Print("--- All DPT sweeps and extractions done ---");

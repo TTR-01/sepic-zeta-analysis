@@ -1,0 +1,36 @@
+Clear();
+Print("--- SEPIC thermal validation starting ---");
+
+// Long transient run of the SEPIC thermal model at Case 3 (Vin = 9 V,
+// Rload = 8 ohm, Duty = 0.59069) so the junction temperatures settle over
+// 500 ms. The timestep and print step are chosen to keep the saved file
+// small enough for the post-processor while still resolving the thermal
+// time constants -- the 40 C ambient is captured from t = 0.
+
+BasePath    = "C:/Users/User/Desktop/TRANSIENT LOAD STEP/";
+ThermalPath = "C:/Users/User/Desktop/TRANSIENT LOAD STEP/";
+SchFile     = BasePath + "thermalmodel.psimsch";
+
+Rg = 3.4;
+
+ThermalSmvFile = ThermalPath + "SEPIC_Case3_Thermal.smv";
+Print("Running Case 3 (500 ms) -> ", ThermalSmvFile);
+
+// 100 ns timestep is a compromise: the 15 ns switching edges are still
+// sampled ~1.5 times, but thermal time constants are on the order of
+// milliseconds so that resolution is plenty for the loss integral. The
+// 10x print decimation writes one sample every 1 us, which is what keeps
+// the .smv file manageable over 500 ms.
+Simulate(
+    SchFile, ThermalSmvFile,
+    TimeStep  = 100n,
+    TotalTime = 500m,
+    PrintTime = 0,          // capture from t = 0 so the 40 C start is visible
+    PrintStep = 10,
+    Vin_case  = 9,
+    Rload_case = 8,
+    Duty_case  = 0.59069,
+    Rg         = Rg
+);
+
+Print("--- SEPIC thermal validation done ---");

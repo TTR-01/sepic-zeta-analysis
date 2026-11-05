@@ -1,0 +1,79 @@
+Clear();
+Print("--- ZETA script starting ---");
+
+// ZETA level-2 model.
+// Runs the PSIM schematic at nine operating points and exports one TXT
+// (fine timestep, used for switching-loss integration in the post-processor)
+// and one SMV (coarse timestep, for looking at waveforms) per case.
+// Duty cycles come straight from the ZETA v10.4 MATLAB summary table
+// (IRLZ44NPbF, tr=84ns, tf=15ns, RJA=62 C/W).
+
+BasePath  = "C:/Users/User/Desktop/ZETA NEW/";
+SchFile   = BasePath + "ZETA.psimsch";
+IndexFile = BasePath + "ZETA_case_index.csv";
+
+// Gate resistor as fitted in the driver circuit
+Rg = 3.4;
+
+// Nine operating points, ordered Vin = 9, 12, 15 V with Io = 0.5, 1.0, 1.5 A
+// at each (Vo = 12 V, so Rload = 24, 12, 8 ohm).
+Vin_list   = { 9,  9,  9,  12, 12, 12,  15, 15, 15 };
+Io_list    = { 0.5, 1.0, 1.5, 0.5, 1.0, 1.5, 0.5, 1.0, 1.5 };
+Rload_list = { 24, 12, 8,  24, 12, 8,  24, 12, 8 };
+
+// Duty cycles from the MATLAB summary table, matched one-to-one with the rows above.
+Duty_list = {
+    0.58345, 0.58641, 0.58977,   // Vin = 9 V
+    0.51130, 0.51322, 0.51535,   // Vin = 12 V
+    0.45513, 0.45650, 0.45801    // Vin = 15 V
+};
+
+FileWrite(IndexFile, "Case,Vin_V,Io_target_A,Rload_Ohm,Duty,Rg_Ohm,Waveform_File" + _CRLF, "A");
+
+i = 0;
+while (i < 9)
+{
+    Vin_case   = Vin_list[i];
+    Io_target  = Io_list[i];
+    Rload_case = Rload_list[i];
+    Duty_case  = Duty_list[i];
+    CaseNo     = String(i + 1);
+
+    TxtFile = BasePath + "Zeta_case_" + CaseNo + "_steady_state.txt";
+    SmvFile = BasePath + "Zeta_case_" + CaseNo + "_steady_state.smv";
+
+    Print("Case ", CaseNo, ": Vin=", Vin_case, "V, Io=", Io_target, "A, Duty=", Duty_case, ", Rg=", Rg, "Ohm");
+
+    // Fine timestep for the data file. The 15 ns falling edge needs at
+    // least 7 samples for the trapz() switching-loss integral; coarser
+    // steps underestimate Q1 loss.
+    Simulate(
+        SchFile,
+        TxtFile,
+        TimeStep  = 2n,
+        TotalTime = 50m,
+        PrintTime = 49.96m,
+        PrintStep = 1,
+        Rg        = Rg
+    );
+
+    // Coarse timestep for the waveform viewer. Nothing is integrated on
+    // this file, so 10 ns is fine.
+    Simulate(
+        SchFile,
+        SmvFile,
+        TimeStep  = 10n,
+        TotalTime = 50m,
+        PrintTime = 49.96m,
+        PrintStep = 1,
+        Rg        = Rg
+    );
+
+    Row = CaseNo + "," + String(Vin_case) + "," + String(Io_target) + "," + String(Rload_case) + "," + String(Duty_case) + "," + String(Rg) + ",Zeta_case_" + CaseNo + "_steady_state.txt";
+    FileAppend(IndexFile, Row + _CRLF);
+
+    i = i + 1;
+}
+
+Print("--- All ZETA simulations done ---");
+Print("9 .txt files and 9 .smv files should be in 'ZETA NEW'.");
